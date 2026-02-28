@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "file-sim-debug",
+      "displayName": "File Sim — Debug",
+      "description": "File-based audio pipeline, debug build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "PLATFORM": "file-sim"
+      }
+    },
+    {
+      "name": "file-sim-release",
+      "displayName": "File Sim — Release",
+      "description": "File-based audio pipeline, release build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PLATFORM": "file-sim"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "file-sim-debug",
+      "configurePreset": "file-sim-debug"
+    },
+    {
+      "name": "file-sim-release",
+      "configurePreset": "file-sim-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "file-sim-debug",
+      "configurePreset": "file-sim-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "file-sim-release",
+      "configurePreset": "file-sim-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

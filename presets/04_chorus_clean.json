@@ -1,0 +1,43 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000004",
+  "format_version": "1.0",
+  "name": "Chorus Clean",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "boost_1",
+      "type": "gain.clean_boost",
+      "enabled": true,
+      "params": {
+        "gain_db": 2.0
+      }
+    },
+    {
+      "id": "chorus_1",
+      "type": "modulation.chorus",
+      "enabled": true,
+      "params": {
+        "rate": 0.8,
+        "depth": 0.6,
+        "mix": 0.45,
+        "voices": 2.0
+      }
+    },
+    {
+      "id": "tremolo_1",
+      "type": "modulation.tremolo",
+      "enabled": false,
+      "params": {
+        "rate": 4.0,
+        "depth": 0.5,
+        "waveform": 0.0
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 0.0,
+    "mid_db": 0.5,
+    "treble_db": 1.0
+  },
+  "output_volume": 0.88
+}

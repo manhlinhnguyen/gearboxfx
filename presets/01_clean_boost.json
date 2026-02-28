@@ -1,0 +1,32 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000001",
+  "format_version": "1.0",
+  "name": "Clean Boost",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "ng_1",
+      "type": "dynamics.noise_gate",
+      "enabled": true,
+      "params": {
+        "threshold_db": -70.0,
+        "attack_ms": 5.0,
+        "release_ms": 150.0
+      }
+    },
+    {
+      "id": "boost_1",
+      "type": "gain.clean_boost",
+      "enabled": true,
+      "params": {
+        "gain_db": 6.0
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 0.0,
+    "mid_db": 0.0,
+    "treble_db": 0.0
+  },
+  "output_volume": 0.85
+}

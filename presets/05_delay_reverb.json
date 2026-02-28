@@ -1,0 +1,46 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000005",
+  "format_version": "1.0",
+  "name": "Delay + Reverb Wash",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "boost_1",
+      "type": "gain.clean_boost",
+      "enabled": true,
+      "params": {
+        "gain_db": 0.0
+      }
+    },
+    {
+      "id": "delay_1",
+      "type": "time.delay",
+      "enabled": true,
+      "params": {
+        "time_ms": 375.0,
+        "feedback": 0.38,
+        "mix": 0.35,
+        "bpm_sync": 0.0,
+        "bpm": 120.0
+      }
+    },
+    {
+      "id": "reverb_1",
+      "type": "time.reverb",
+      "enabled": true,
+      "params": {
+        "size": 0.65,
+        "decay": 0.55,
+        "damping": 0.45,
+        "pre_delay_ms": 15.0,
+        "mix": 0.32
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 0.0,
+    "mid_db": -0.5,
+    "treble_db": 0.5
+  },
+  "output_volume": 0.80
+}

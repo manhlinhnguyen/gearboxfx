@@ -1,0 +1,37 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000006",
+  "format_version": "1.0",
+  "name": "Cathedral Shimmer",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "chorus_1",
+      "type": "modulation.chorus",
+      "enabled": true,
+      "params": {
+        "rate": 0.35,
+        "depth": 0.85,
+        "mix": 0.65,
+        "voices": 4.0
+      }
+    },
+    {
+      "id": "reverb_1",
+      "type": "time.reverb",
+      "enabled": true,
+      "params": {
+        "size": 0.92,
+        "decay": 0.88,
+        "damping": 0.25,
+        "pre_delay_ms": 28.0,
+        "mix": 0.62
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 1.0,
+    "mid_db": -2.0,
+    "treble_db": 1.5
+  },
+  "output_volume": 0.80
+}
