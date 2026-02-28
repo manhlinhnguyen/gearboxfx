@@ -107,16 +107,30 @@ GuiAudioIO::~GuiAudioIO() {
 bool GuiAudioIO::loadFile(const std::string& path) {
     m_playing.store(false);
 
-    if (!decodeAudioFile(path, m_decoded, m_sr, m_numCh, m_totalFrames)) {
+    // Decode into a temporary buffer so the chain lock is held for the
+    // shortest possible time (disk I/O must not happen under the lock).
+    std::vector<float> decoded;
+    uint32_t sr = 0; int numCh = 0; uint64_t totalFrames = 0;
+    if (!decodeAudioFile(path, decoded, sr, numCh, totalFrames)) {
         spdlog::error("GuiAudioIO: cannot open '{}'", path);
         return false;
+    }
+
+    // Swap decoded data under the chain mutex so the audio callback never
+    // reads m_decoded / m_numCh / m_totalFrames while they are being replaced.
+    {
+        std::lock_guard<std::mutex> lock(m_chainMutex);
+        m_decoded = std::move(decoded);
+        m_sr      = sr;
+        m_numCh.store(numCh);
+        m_totalFrames.store(totalFrames);
     }
 
     m_readPos.store(0);
     m_outputLevel.store(0.0f);
 
     spdlog::info("GuiAudioIO: loaded '{}' — {}Hz, {}ch, {} frames",
-                 path, m_sr, m_numCh, m_totalFrames);
+                 path, m_sr, m_numCh.load(), m_totalFrames.load());
     return true;
 }
 
@@ -128,11 +142,11 @@ void GuiAudioIO::setEngine(EffectEngine* engine, double sampleRate, int blockSiz
     m_sampleRate = sampleRate;
     m_blockSize  = blockSize;
 
-    int nCh = (m_numCh > 0) ? m_numCh : 2;
+    int nCh = (m_numCh.load() > 0) ? m_numCh.load() : 2;
     m_inAB.resize(nCh, blockSize);
     m_outAB.resize(nCh, blockSize);
 
-    if (!m_paInited || !engine || m_numCh == 0) return;
+    if (!m_paInited || !engine || m_numCh.load() == 0) return;
 
     double sr = (m_sr > 0) ? static_cast<double>(m_sr) : sampleRate;
 
@@ -144,7 +158,7 @@ void GuiAudioIO::setEngine(EffectEngine* engine, double sampleRate, int blockSiz
 
     PaStreamParameters outParams{};
     outParams.device                    = dev;
-    outParams.channelCount              = m_numCh;
+    outParams.channelCount              = m_numCh.load();
     outParams.sampleFormat              = paFloat32;
     outParams.suggestedLatency          = Pa_GetDeviceInfo(dev)->defaultLowOutputLatency;
     outParams.hostApiSpecificStreamInfo = nullptr;
@@ -160,7 +174,7 @@ void GuiAudioIO::setEngine(EffectEngine* engine, double sampleRate, int blockSiz
 
     Pa_StartStream(m_stream);
     spdlog::info("GuiAudioIO: PortAudio stream open at {}Hz, {}ch, block={}",
-                 (int)sr, m_numCh, blockSize);
+                 (int)sr, m_numCh.load(), blockSize);
 }
 
 void GuiAudioIO::play() {
@@ -178,9 +192,9 @@ void GuiAudioIO::seekToStart() {
 }
 
 float GuiAudioIO::progress() const {
-    if (m_totalFrames == 0) return 0.0f;
+    if (m_totalFrames.load() == 0) return 0.0f;
     return static_cast<float>(m_readPos.load()) /
-           static_cast<float>(m_totalFrames);
+           static_cast<float>(m_totalFrames.load());
 }
 
 void GuiAudioIO::closeStream() {
@@ -205,7 +219,7 @@ int GuiAudioIO::doCallback(void* outBuf, unsigned long frames) {
     int   numCh = m_numCh;
     int   nF    = static_cast<int>(frames);
 
-    if (!m_playing.load() || m_engine == nullptr || m_decoded.empty()) {
+    if (!m_playing.load() || m_engine == nullptr || m_totalFrames.load() == 0) {
         std::memset(out, 0, frames * static_cast<size_t>(numCh) * sizeof(float));
         return paContinue;
     }

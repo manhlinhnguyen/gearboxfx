@@ -47,6 +47,9 @@ void PresetPanel::render(AppContext& ctx) {
         bool selected = (m_selectedIdx == i);
         if (ImGui::Selectable(m_presets[i].name.c_str(), selected)) {
             m_selectedIdx = i;
+            // Hold chain lock so the audio callback cannot iterate the chain
+            // while loadPreset() tears it down and rebuilds it.
+            auto lock = ctx.audio->lockChain();
             if (ctx.engine->loadPreset(m_presets[i].path)) {
                 ctx.engine->chain().prepare(ctx.sampleRate, ctx.blockSize);
                 ctx.selectedEffectId->clear();
@@ -59,6 +62,7 @@ void PresetPanel::render(AppContext& ctx) {
 
     // New preset
     if (ImGui::Button("+ New")) {
+        auto lock = ctx.audio->lockChain();
         ctx.engine->chain().clear();
         ctx.selectedEffectId->clear();
         ctx.engine->setPresetName("new_preset");

@@ -36,9 +36,9 @@ public:
     bool     isPlaying()   const { return m_playing.load(); }
     float    progress()    const;           // [0,1]
     float    outputLevel() const { return m_outputLevel.load(); }
-    int      numChannels() const { return m_numCh; }
+    int      numChannels() const { return m_numCh.load(); }
     uint32_t sampleRate()  const { return m_sr; }
-    bool     hasFile()     const { return !m_decoded.empty(); }
+    bool     hasFile()     const { return m_totalFrames.load() > 0; }
     bool     loop()        const { return m_loop.load(); }
     void     setLoop(bool l)    { m_loop.store(l); }
 
@@ -53,10 +53,10 @@ private:
     double        m_sampleRate = 48000.0;
     int           m_blockSize  = 256;
 
-    std::vector<float> m_decoded;      // interleaved float32 frames
-    int      m_numCh       = 0;
-    uint32_t m_sr          = 0;
-    uint64_t m_totalFrames = 0;
+    std::vector<float> m_decoded;      // interleaved float32 frames (guarded by m_chainMutex)
+    std::atomic<int>      m_numCh       {0};
+    uint32_t              m_sr          = 0;
+    std::atomic<uint64_t> m_totalFrames {0};
 
     std::atomic<uint64_t> m_readPos    {0};
     std::atomic<bool>     m_playing    {false};
