@@ -1,0 +1,91 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000013",
+  "format_version": "1.0",
+  "name": "Blues Classic",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "ng_1",
+      "type": "dynamics.noise_gate",
+      "enabled": true,
+      "params": {
+        "threshold_db": -55.0,
+        "attack_ms": 5.0,
+        "release_ms": 200.0
+      }
+    },
+    {
+      "id": "comp_1",
+      "type": "dynamics.compressor",
+      "enabled": true,
+      "params": {
+        "threshold_db": -14.0,
+        "ratio": 3.5,
+        "attack_ms": 15.0,
+        "release_ms": 120.0,
+        "makeup_db": 3.0,
+        "knee_db": 4.0
+      }
+    },
+    {
+      "id": "od_1",
+      "type": "gain.overdrive",
+      "enabled": true,
+      "params": {
+        "gain": 0.40,
+        "tone": 0.45,
+        "level": 0.80
+      }
+    },
+    {
+      "id": "eq_1",
+      "type": "eq.parametric",
+      "enabled": true,
+      "params": {
+        "bass_db": 2.0,
+        "mid_db": 3.0,
+        "mid_freq": 750.0,
+        "treble_db": -1.0
+      }
+    },
+    {
+      "id": "delay_1",
+      "type": "time.delay",
+      "enabled": true,
+      "params": {
+        "time_ms": 95.0,
+        "feedback": 0.05,
+        "mix": 0.20,
+        "bpm_sync": 0.0,
+        "bpm": 120.0
+      }
+    },
+    {
+      "id": "reverb_1",
+      "type": "time.reverb",
+      "enabled": true,
+      "params": {
+        "size": 0.35,
+        "decay": 0.45,
+        "damping": 0.55,
+        "pre_delay_ms": 10.0,
+        "mix": 0.18
+      }
+    },
+    {
+      "id": "vol_1",
+      "type": "output.volume",
+      "enabled": true,
+      "params": {
+        "volume_db": 0.0,
+        "limiter_threshold_db": -1.0
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 1.0,
+    "mid_db": 1.5,
+    "treble_db": -0.5
+  },
+  "output_volume": 0.82
+}
