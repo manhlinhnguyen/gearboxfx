@@ -8,7 +8,7 @@ public:
     void render(AppContext& ctx);
 
 private:
-    char m_wavPath[512] = "";
+    char m_loadedFile[512] = "";
 };
 
 } // namespace gearboxfx

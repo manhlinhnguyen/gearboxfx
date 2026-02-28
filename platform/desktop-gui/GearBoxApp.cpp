@@ -40,7 +40,7 @@ bool GearBoxApp::init(int width, int height, const char* title,
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = "gearboxfx_gui.ini";  // persist window layout
+    io.IniFilename = "gearboxfx_gui_v2.ini";  // persist window layout
     ImGui::StyleColorsDark();
 
     ImGui_ImplGlfw_InitForOpenGL(m_window, true);
@@ -88,7 +88,6 @@ void GearBoxApp::render() {
     m_transport.render(ctx);
     m_presets.render(ctx);
     m_chain.render(ctx);
-    m_params.render(ctx);
 
     // Sync back mutable fields that panels may have changed
     m_sampleRate = ctx.sampleRate;

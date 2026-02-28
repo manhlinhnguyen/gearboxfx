@@ -31,7 +31,6 @@ add_library(GearBoxDesktopGui STATIC
     panels/TransportPanel.cpp
     panels/PresetPanel.cpp
     panels/ChainPanel.cpp
-    panels/ParamPanel.cpp
 )
 
 target_include_directories(GearBoxDesktopGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

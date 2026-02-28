@@ -47,15 +47,20 @@ static std::shared_ptr<EffectNode> makeNode(const std::string& type) {
         EXPECT_LT(rms(out.getReadPointer(0), kBlock), 1e-5f); \
     }
 
-TEST_SILENCE_PASSTHROUGH(dynamics_noise_gate,   "dynamics.noise_gate")
-TEST_SILENCE_PASSTHROUGH(dynamics_compressor,   "dynamics.compressor")
-TEST_SILENCE_PASSTHROUGH(gain_clean_boost,      "gain.clean_boost")
-TEST_SILENCE_PASSTHROUGH(gain_overdrive,        "gain.overdrive")
-TEST_SILENCE_PASSTHROUGH(gain_distortion,       "gain.distortion")
-TEST_SILENCE_PASSTHROUGH(modulation_chorus,     "modulation.chorus")
-TEST_SILENCE_PASSTHROUGH(modulation_tremolo,    "modulation.tremolo")
-TEST_SILENCE_PASSTHROUGH(time_delay,            "time.delay")
-TEST_SILENCE_PASSTHROUGH(time_reverb,           "time.reverb")
+TEST_SILENCE_PASSTHROUGH(dynamics_noise_gate,          "dynamics.noise_gate")
+TEST_SILENCE_PASSTHROUGH(dynamics_compressor,          "dynamics.compressor")
+TEST_SILENCE_PASSTHROUGH(eq_parametric,                "eq.parametric")
+TEST_SILENCE_PASSTHROUGH(gain_clean_boost,             "gain.clean_boost")
+TEST_SILENCE_PASSTHROUGH(gain_overdrive,               "gain.overdrive")
+TEST_SILENCE_PASSTHROUGH(gain_distortion,              "gain.distortion")
+TEST_SILENCE_PASSTHROUGH(modulation_chorus,            "modulation.chorus")
+TEST_SILENCE_PASSTHROUGH(modulation_flanger,           "modulation.flanger")
+TEST_SILENCE_PASSTHROUGH(modulation_phaser,            "modulation.phaser")
+TEST_SILENCE_PASSTHROUGH(modulation_pitch_shifter,     "modulation.pitch_shifter")
+TEST_SILENCE_PASSTHROUGH(modulation_tremolo,           "modulation.tremolo")
+TEST_SILENCE_PASSTHROUGH(output_volume,                "output.volume")
+TEST_SILENCE_PASSTHROUGH(time_delay,                   "time.delay")
+TEST_SILENCE_PASSTHROUGH(time_reverb,                  "time.reverb")
 
 // ── Signal level tests ────────────────────────────────────────────────────────
 
@@ -245,8 +250,11 @@ TEST(Effects, Registry_AllTypesRegistered) {
     EffectNodeRegistry reg;
     std::vector<std::string> expected = {
         "dynamics.noise_gate", "dynamics.compressor",
+        "eq.parametric",
         "gain.clean_boost", "gain.overdrive", "gain.distortion",
-        "modulation.chorus", "modulation.tremolo",
+        "modulation.chorus", "modulation.flanger", "modulation.phaser",
+        "modulation.pitch_shifter", "modulation.tremolo",
+        "output.volume",
         "time.delay", "time.reverb"
     };
     for (auto& t : expected) {
@@ -254,4 +262,270 @@ TEST(Effects, Registry_AllTypesRegistered) {
         auto node = reg.create(t);
         EXPECT_NE(node, nullptr) << "Cannot create: " << t;
     }
+}
+
+// ── EQ (eq.parametric) ────────────────────────────────────────────────────────
+
+TEST(Effects, EQ_FlatSettingIsTransparent) {
+    // Default params are all 0 dB → biquads collapse to identity (H(z)=1)
+    auto node = makeNode("eq.parametric");
+    // defaults already 0 dB — no setParam needed
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_NEAR(rmsOut, rmsIn, rmsIn * 0.01f);  // ≤ 1% deviation
+}
+
+TEST(Effects, EQ_TrebleBoostIncreasesHFRMS) {
+    auto node = makeNode("eq.parametric");
+    node->setParam("treble_db", 12.0f);
+
+    // 12 kHz tone — well inside the high-shelf boost region (shelf @ 8 kHz)
+    AudioBuffer in  = makeTone(12000.0f, 0.3f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 10; ++i) node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_GT(rmsOut, rmsIn * 1.2f);  // must be noticeably louder
+}
+
+TEST(Effects, EQ_BassCutReducesLFRMS) {
+    auto node = makeNode("eq.parametric");
+    node->setParam("bass_db", -12.0f);
+
+    // 60 Hz tone — well inside the low-shelf cut region (shelf @ 80 Hz)
+    AudioBuffer in  = makeTone(60.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 20; ++i) node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_LT(rmsOut, rmsIn * 0.8f);  // must be noticeably quieter
+}
+
+TEST(Effects, EQ_MidBoostIncreasesMFRMS) {
+    auto node = makeNode("eq.parametric");
+    node->setParam("mid_db",   12.0f);
+    node->setParam("mid_freq", 1000.0f);
+
+    // 1 kHz tone — directly at the peak center
+    AudioBuffer in  = makeTone(1000.0f, 0.3f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 10; ++i) node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_GT(rmsOut, rmsIn * 1.2f);
+}
+
+// ── Flanger (modulation.flanger) ──────────────────────────────────────────────
+
+TEST(Effects, Flanger_DryMixPassesThrough) {
+    auto node = makeNode("modulation.flanger");
+    node->setParam("mix", 0.0f);  // 100% dry
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_NEAR(rmsOut, rmsIn, rmsIn * 0.01f);
+}
+
+TEST(Effects, Flanger_WetMixProducesSignal) {
+    auto node = makeNode("modulation.flanger");
+    node->setParam("mix", 1.0f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    // Fill delay buffer first
+    for (int i = 0; i < 10; ++i) node->process(iv, ov, kBlock);
+
+    // Wet output should carry signal (delayed copy of input)
+    EXPECT_GT(rms(out.getReadPointer(0), kBlock), 0.01f);
+}
+
+TEST(Effects, Flanger_HighFeedbackStaysBounded) {
+    auto node = makeNode("modulation.flanger");
+    node->setParam("feedback", 0.9f);
+    node->setParam("mix",      0.8f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 200; ++i) node->process(iv, ov, kBlock);
+
+    const float* o = out.getReadPointer(0);
+    for (int s = 0; s < kBlock; ++s)
+        EXPECT_LT(std::abs(o[s]), 5.0f) << "sample " << s << " diverged";
+}
+
+// ── Phaser (modulation.phaser) ────────────────────────────────────────────────
+
+TEST(Effects, Phaser_DryMixPassesThrough) {
+    auto node = makeNode("modulation.phaser");
+    node->setParam("mix", 0.0f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_NEAR(rmsOut, rmsIn, rmsIn * 0.01f);
+}
+
+TEST(Effects, Phaser_WetMixProducesSignal) {
+    auto node = makeNode("modulation.phaser");
+    node->setParam("mix", 1.0f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 5; ++i) node->process(iv, ov, kBlock);
+
+    // All-pass preserves magnitude, so wet output should have similar energy to input
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_GT(rmsOut, rmsIn * 0.1f);
+}
+
+TEST(Effects, Phaser_HighFeedbackStaysBounded) {
+    auto node = makeNode("modulation.phaser");
+    node->setParam("feedback", 0.85f);
+    node->setParam("mix",      0.8f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 200; ++i) node->process(iv, ov, kBlock);
+
+    const float* o = out.getReadPointer(0);
+    for (int s = 0; s < kBlock; ++s)
+        EXPECT_LT(std::abs(o[s]), 5.0f) << "sample " << s << " diverged";
+}
+
+// ── PitchShifter (modulation.pitch_shifter) ───────────────────────────────────
+
+TEST(Effects, PitchShifter_DryMixPassesThrough) {
+    auto node = makeNode("modulation.pitch_shifter");
+    node->setParam("mix", 0.0f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_NEAR(rmsOut, rmsIn, rmsIn * 0.01f);
+}
+
+TEST(Effects, PitchShifter_OctaveUpProducesSignal) {
+    auto node = makeNode("modulation.pitch_shifter");
+    node->setParam("semitones", 12.0f);
+    node->setParam("mix",       1.0f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+
+    // Fill the grain buffer (2048 samples = 8 blocks) then check output has signal
+    for (int i = 0; i < 16; ++i) node->process(iv, ov, kBlock);
+
+    EXPECT_GT(rms(out.getReadPointer(0), kBlock), 0.01f);
+}
+
+TEST(Effects, PitchShifter_OutputBounded) {
+    auto node = makeNode("modulation.pitch_shifter");
+    node->setParam("semitones", 7.0f);
+    node->setParam("mix",       1.0f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.9f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 100; ++i) node->process(iv, ov, kBlock);
+
+    // Hann overlap-add: two windows sum to ≤ 1, so output ≤ input amplitude
+    const float* o = out.getReadPointer(0);
+    for (int s = 0; s < kBlock; ++s)
+        EXPECT_LT(std::abs(o[s]), 2.0f) << "sample " << s << " out of range";
+}
+
+// ── VolumeNode (output.volume) ────────────────────────────────────────────────
+
+TEST(Effects, Volume_ZeroDbIsTransparent) {
+    auto node = makeNode("output.volume");
+    // Defaults: volume_db=0, limiter_threshold_db=0 → no gain, limiter at unity
+
+    AudioBuffer in  = makeTone(440.0f, 0.3f);  // below limiter threshold
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 10; ++i) node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_NEAR(rmsOut, rmsIn, rmsIn * 0.02f);
+}
+
+TEST(Effects, Volume_BoostIncreasesLevel) {
+    auto node = makeNode("output.volume");
+    node->setParam("volume_db",            6.0f);
+    node->setParam("limiter_threshold_db", 0.0f);  // limiter at unity (won't trigger)
+
+    AudioBuffer in  = makeTone(440.0f, 0.2f);  // quiet enough that 6dB boost stays below 1.0
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 10; ++i) node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    float expected = rmsIn * std::pow(10.0f, 6.0f / 20.0f);
+    EXPECT_NEAR(rmsOut, expected, expected * 0.05f);
+}
+
+TEST(Effects, Volume_AttenuationReducesLevel) {
+    auto node = makeNode("output.volume");
+    node->setParam("volume_db",            -6.0f);
+    node->setParam("limiter_threshold_db", 0.0f);
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+    for (int i = 0; i < 10; ++i) node->process(iv, ov, kBlock);
+
+    float rmsIn  = rms(in.getReadPointer(0), kBlock);
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    float expected = rmsIn * std::pow(10.0f, -6.0f / 20.0f);
+    EXPECT_NEAR(rmsOut, expected, expected * 0.05f);
+}
+
+TEST(Effects, Volume_LimiterConstrainsHighGain) {
+    auto node = makeNode("output.volume");
+    node->setParam("volume_db",            12.0f);  // 4x linear gain
+    node->setParam("limiter_threshold_db", -6.0f);  // clamp at 0.5 linear
+
+    AudioBuffer in  = makeTone(440.0f, 0.5f);  // peak ≈ 0.5; after gain ≈ 2.0 → limiter kicks in
+    AudioBuffer out(kCh, kBlock);
+    auto iv = in.view(), ov = out.view();
+
+    // Run enough blocks for envelope follower to settle
+    for (int i = 0; i < 50; ++i) node->process(iv, ov, kBlock);
+
+    float threshold = std::pow(10.0f, -6.0f / 20.0f);  // ≈ 0.501
+    float rmsOut = rms(out.getReadPointer(0), kBlock);
+    EXPECT_LT(rmsOut, threshold * 1.2f);  // should be well below ungained 2.0
 }

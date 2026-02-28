@@ -1,0 +1,56 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000010",
+  "format_version": "1.0",
+  "name": "Phaser Funk",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "comp_1",
+      "type": "dynamics.compressor",
+      "enabled": true,
+      "params": {
+        "threshold_db": -10.0,
+        "ratio": 4.0,
+        "attack_ms": 5.0,
+        "release_ms": 80.0,
+        "makeup_db": 2.5,
+        "knee_db": 3.0
+      }
+    },
+    {
+      "id": "boost_1",
+      "type": "gain.clean_boost",
+      "enabled": true,
+      "params": {
+        "gain_db": 2.0
+      }
+    },
+    {
+      "id": "phaser_1",
+      "type": "modulation.phaser",
+      "enabled": true,
+      "params": {
+        "rate": 1.2,
+        "depth": 0.9,
+        "feedback": 0.65,
+        "mix": 0.6
+      }
+    },
+    {
+      "id": "tremolo_1",
+      "type": "modulation.tremolo",
+      "enabled": false,
+      "params": {
+        "rate": 5.0,
+        "depth": 0.4,
+        "waveform": 0.0
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 0.5,
+    "mid_db": 2.0,
+    "treble_db": -0.5
+  },
+  "output_volume": 0.86
+}

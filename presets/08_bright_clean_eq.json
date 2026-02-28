@@ -1,0 +1,58 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000008",
+  "format_version": "1.0",
+  "name": "Bright Clean EQ",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "comp_1",
+      "type": "dynamics.compressor",
+      "enabled": true,
+      "params": {
+        "threshold_db": -14.0,
+        "ratio": 2.5,
+        "attack_ms": 10.0,
+        "release_ms": 120.0,
+        "makeup_db": 1.0,
+        "knee_db": 4.0
+      }
+    },
+    {
+      "id": "boost_1",
+      "type": "gain.clean_boost",
+      "enabled": true,
+      "params": {
+        "gain_db": 3.0
+      }
+    },
+    {
+      "id": "eq_1",
+      "type": "eq.parametric",
+      "enabled": true,
+      "params": {
+        "bass_db": 2.5,
+        "mid_db": -2.0,
+        "treble_db": 5.0,
+        "mid_freq": 700.0
+      }
+    },
+    {
+      "id": "reverb_1",
+      "type": "time.reverb",
+      "enabled": true,
+      "params": {
+        "size": 0.35,
+        "decay": 0.4,
+        "damping": 0.6,
+        "pre_delay_ms": 12.0,
+        "mix": 0.18
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 0.0,
+    "mid_db": 0.0,
+    "treble_db": 0.0
+  },
+  "output_volume": 0.85
+}

@@ -1,0 +1,57 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000009",
+  "format_version": "1.0",
+  "name": "Jet Flanger",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "ng_1",
+      "type": "dynamics.noise_gate",
+      "enabled": true,
+      "params": {
+        "threshold_db": -55.0,
+        "attack_ms": 2.0,
+        "release_ms": 150.0
+      }
+    },
+    {
+      "id": "od_1",
+      "type": "gain.overdrive",
+      "enabled": true,
+      "params": {
+        "gain": 0.38,
+        "tone": 0.55,
+        "level": 0.72
+      }
+    },
+    {
+      "id": "flanger_1",
+      "type": "modulation.flanger",
+      "enabled": true,
+      "params": {
+        "rate": 0.45,
+        "depth": 1.0,
+        "feedback": 0.72,
+        "mix": 0.65
+      }
+    },
+    {
+      "id": "reverb_1",
+      "type": "time.reverb",
+      "enabled": true,
+      "params": {
+        "size": 0.28,
+        "decay": 0.3,
+        "damping": 0.55,
+        "pre_delay_ms": 8.0,
+        "mix": 0.14
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 1.0,
+    "mid_db": 0.0,
+    "treble_db": 1.5
+  },
+  "output_volume": 0.82
+}

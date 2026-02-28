@@ -8,10 +8,10 @@ GearBox FX is a programmable multi-effects guitar pedal with an open-source pres
 
 ## Features
 
-- 9 built-in effects (dynamics, gain, modulation, time-based)
+- 14 built-in effects (dynamics, EQ, gain, modulation, output, time-based)
 - JSON preset format — human-readable, version-controlled, shareable
 - Phase 1a: WAV file pipeline with CLI
-- Phase 1b: Real-time desktop GUI (Dear ImGui + GLFW + OpenGL3)
+- Phase 1b: Real-time desktop GUI — horizontal block view, inline knobs, file browser, loop playback
 - Pure C++17 DSP core — no platform code, portable to embedded targets
 - Planned: STM32H743 hardware, mobile app (Flutter), cloud backend (NestJS)
 
@@ -22,7 +22,7 @@ GearBox FX is a programmable multi-effects guitar pedal with an open-source pres
 | Phase | Status | Description |
 |-------|--------|-------------|
 | **1a** | Done (2026-02-28) | File audio pipeline — WAV→DSP→WAV, 9 effects, CLI, 7 presets |
-| **1b** | Done (2026-02-28) | Dear ImGui desktop GUI — real-time WAV playback, preset/chain/param editing |
+| **1b** | Done (2026-02-28) | Dear ImGui desktop GUI — horizontal block view, inline knobs, file browser, loop, 14 effects, 11 presets |
 | **2** | Q2 2026 | Alpha hardware — STM32H743 + PCB Rev A |
 | **3** | Q3 2026 | Beta — cloud backend, IR Loader, Looper, AmpSim |
 | **4** | Q4 2026 | Production release |
@@ -45,7 +45,7 @@ gearboxfx/
 ├── platform/
 │   ├── file-sim/             # Phase 1a — FileAudioIO (WAV I/O)
 │   └── desktop-gui/          # Phase 1b — GuiAudioIO + ImGui panels
-│       └── panels/           # TransportPanel, PresetPanel, ChainPanel, ParamPanel
+│       └── panels/           # TransportPanel, PresetPanel, ChainPanel (block view)
 ├── app/                      # Phase 1a CLI executable
 ├── app-gui/                  # Phase 1b desktop GUI executable
 ├── presets/                  # JSON preset files
@@ -87,33 +87,42 @@ gearboxfx/
 
 ---
 
-## Built-in Effects
+## Built-in Effects (14 total)
 
 | Type ID | Effect | Key Parameters |
 |---------|--------|----------------|
 | `dynamics.noise_gate` | Noise Gate | threshold_db, attack_ms, release_ms |
 | `dynamics.compressor` | Compressor | threshold_db, ratio, attack_ms, release_ms, makeup_db, knee_db |
+| `eq.parametric` | Parametric EQ | bass_db, mid_db, mid_freq, treble_db |
 | `gain.clean_boost` | Clean Boost | gain_db |
 | `gain.overdrive` | Overdrive | gain, tone, level |
 | `gain.distortion` | Distortion | gain, tone, level, asymmetry |
 | `modulation.chorus` | Chorus | rate, depth, mix, voices |
+| `modulation.flanger` | Flanger | rate, depth, feedback, mix |
+| `modulation.phaser` | Phaser | rate, depth, feedback, mix |
+| `modulation.pitch_shifter` | Pitch Shifter | semitones, mix |
 | `modulation.tremolo` | Tremolo | rate, depth, waveform |
+| `output.volume` | Volume + Limiter | volume_db, limiter_threshold_db |
 | `time.delay` | Delay | time_ms, feedback, mix, bpm_sync, bpm |
 | `time.reverb` | Reverb | size, decay, damping, pre_delay_ms, mix |
 
 ---
 
-## Included Presets
+## Included Presets (11 total)
 
 | File | Name | Description |
 |------|------|-------------|
 | `01_clean_boost.json` | Clean Boost | Noise gate + +6dB boost |
 | `02_mild_overdrive.json` | Mild Overdrive | Light gain, classic tone |
-| `02a_mild_overdrive_reverb.json` | Mild Overdrive + Reverb | Overdrive with room reverb |
 | `03_heavy_distortion.json` | Heavy Distortion | High-gain distortion |
 | `04_chorus_clean.json` | Chorus Clean | Clean tone with chorus |
 | `05_delay_reverb.json` | Delay + Reverb | Ambient delay and reverb |
 | `06_cathedral_shimmer.json` | Cathedral Shimmer | Large reverb, long decay |
+| `08_bright_clean_eq.json` | Bright Clean EQ | Parametric EQ, bright presence boost |
+| `09_jet_flanger.json` | Jet Flanger | Classic jet flanger with feedback |
+| `10_phaser_funk.json` | Phaser Funk | Funky slow phaser sweep |
+| `11_octave_up.json` | Octave Up | +12 semitone pitch shifter |
+| `12_warm_overdrive_full.json` | Warm Overdrive Full | Full chain: gate → comp → EQ → overdrive → reverb |
 
 ---
 
@@ -200,6 +209,11 @@ $env:CXX = "C:\ProgramData\mingw64\mingw64\bin\g++.exe"
 ```powershell
 .\build\app-gui\gearboxfx-gui.exe
 ```
+
+The GUI opens a 1280×720 window with a 3-panel layout:
+- **Transport** (top-left): Browse WAV file, Play/Stop/Rewind, Loop toggle, volume slider, VU meter
+- **Presets** (top-right of transport): load/save presets from the `presets/` directory
+- **Effects** (full bottom, scrollable): horizontal block view — each effect is a block with a category-colored header, inline knobs (3 per row), ON/OFF toggle, and reorder/delete buttons
 
 ### Run Tests
 

@@ -28,9 +28,10 @@ void PresetPanel::scanPresets(const std::string& dir) {
 }
 
 void PresetPanel::render(AppContext& ctx) {
-    ImGui::SetNextWindowPos(ImVec2(400, 0), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(280, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Presets");
+    ImGui::SetNextWindowPos(ImVec2(400, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(280, 155), ImGuiCond_Always);
+    ImGui::Begin("Presets", nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
     // Refresh button
     if (ImGui::Button("Refresh") || m_needScan) {
@@ -41,7 +42,7 @@ void PresetPanel::render(AppContext& ctx) {
     ImGui::Separator();
 
     // Scrollable preset list
-    ImGui::BeginChild("preset_list", ImVec2(0, -70.0f), true);
+    ImGui::BeginChild("preset_list", ImVec2(0, -40.0f), true);
     for (int i = 0; i < static_cast<int>(m_presets.size()); ++i) {
         bool selected = (m_selectedIdx == i);
         if (ImGui::Selectable(m_presets[i].name.c_str(), selected)) {

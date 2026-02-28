@@ -155,16 +155,21 @@ const std::string& presetName() const;
 5. Add the `.cpp` to `dsp-core/CMakeLists.txt` source list
 6. No other files need to change — GUI picks it up automatically in the "Add Effect" popup
 
-### Registered Effect Type IDs (Phase 1a)
+### Registered Effect Type IDs (all 14 effects)
 | Type ID | Node | Key Params |
 |---|---|---|
 | `dynamics.noise_gate` | NoiseGateNode | threshold_db, attack_ms, release_ms |
 | `dynamics.compressor` | CompressorNode | threshold_db, ratio, attack_ms, release_ms, makeup_db, knee_db |
+| `eq.parametric` | EQNode | bass_db, mid_db, mid_freq, treble_db |
 | `gain.clean_boost` | CleanBoostNode | gain_db |
 | `gain.overdrive` | OverdriveNode | gain, tone, level |
 | `gain.distortion` | DistortionNode | gain, tone, level, asymmetry |
 | `modulation.chorus` | ChorusNode | rate, depth, mix, voices |
+| `modulation.flanger` | FlangerNode | rate, depth, feedback, mix |
+| `modulation.phaser` | PhaserNode | rate, depth, feedback, mix |
+| `modulation.pitch_shifter` | PitchShifterNode | semitones, mix |
 | `modulation.tremolo` | TremoloNode | rate, depth, waveform |
+| `output.volume` | VolumeNode | volume_db, limiter_threshold_db |
 | `time.delay` | DelayNode | time_ms, feedback, mix, bpm_sync, bpm |
 | `time.reverb` | ReverbNode | size, decay, damping, pre_delay_ms, mix |
 
@@ -193,13 +198,12 @@ const std::string& presetName() const;
 platform/desktop-gui/
 ├── CMakeLists.txt          imgui_lib (static) + GearBoxDesktopGui (static)
 ├── AppContext.h            shared state struct passed to all panels each frame
-├── GearBoxApp.h / .cpp     GLFW window, ImGui docking, render loop
-├── GuiAudioIO.h / .cpp     PortAudio real-time WAV playback + engine bridge
+├── GearBoxApp.h / .cpp     GLFW window, 3-panel layout, render loop
+├── GuiAudioIO.h / .cpp     PortAudio real-time WAV playback + engine bridge; loop support
 └── panels/
-    ├── TransportPanel      WAV load, play/stop, progress bar, VU meter
-    ├── PresetPanel         filesystem scan, selectable list, save-as, new
-    ├── ChainPanel          add/remove/move/enable nodes, "Add Effect" popup
-    └── ParamPanel          knobs (range ≤ 2.0) + sliders (wide range)
+    ├── TransportPanel      (0,0) 400×155 — Browse (WIN32 dialog), Loop, Play/Stop/Rewind, Vol, VU
+    ├── PresetPanel         (400,0) 280×155 — filesystem scan, selectable list, save-as, new
+    └── ChainPanel          (0,155) 1280×565 — horizontal scrollable block view (see below)
 app-gui/
 ├── CMakeLists.txt          gearboxfx-gui exe, post-build copies presets/
 └── main_gui.cpp            10-line entry point
@@ -228,9 +232,24 @@ struct AppContext {
 ```
 Created fresh in `GearBoxApp::render()` each frame from `m_*` members; mutable fields (e.g. `sampleRate`) synced back after render.
 
-### ParamPanel Widget Rules
-- `(def.maxValue - def.minValue) <= 2.0` → `ImGuiKnobs::Knob` (Wiper variant), rendered side-by-side
-- Otherwise → `ImGui::SliderFloat`, one per line
+### ChainPanel — Block View (replaced old 4-panel layout)
+- Window fixed at pos (0,155), size (1280,565), `HorizontalScrollbar | NoResize | NoMove | NoCollapse`
+- Each effect node = one block, width `kBlockW = 185.0f`, placed side-by-side with `SameLine()`
+- Block header: `DrawList::AddRectFilled` colored by category + `TextUnformatted(shortLabel)`
+  - Category colors: dynamics=blue, eq=yellow, gain=orange, modulation=purple, output=gray, time=teal
+- ON/OFF toggle button (green/gray) in the header row, pinned right
+- All params rendered as `ImGuiKnobs::Knob` (Wiper variant, `kKnobSize = 48.0f`), 3 per row
+  - Format string chosen by unit: `dB`→`"%.1f"`, `ms`/`Hz`/`st`→`"%.0f"`, else `"%.2f"`
+- `< > X` buttons per block; mutations deferred until after `EndChild("##chain_scroll")` so the ImGui stack stays balanced when a button is clicked
+- `+ Add Effect` button inline after the last block (same horizontal scroll row)
+- `ParamPanel` is removed from the build (`panels/ParamPanel.h/.cpp` kept on disk only)
+
+### GuiAudioIO — Loop API
+```cpp
+bool loop()       const;   // returns m_loop atomic
+void setLoop(bool l);      // stores to m_loop atomic
+```
+When `m_loop` is true, `doCallback` resets `m_readPos` to 0 at EOF instead of stopping playback.
 
 ### Key Build Fix (imgui FetchContent)
 Dear ImGui and imgui-knobs have no `CMakeLists.txt` at their repo root. Use `FetchContent_Populate` (not `FetchContent_MakeAvailable`) to download sources only, then compile them manually in `platform/desktop-gui/CMakeLists.txt`.
@@ -276,7 +295,7 @@ REST API at `https://api.gearboxfx.io/v1`. Key resources: `/auth`, `/presets`, `
 | Phase | Status | Goal |
 |---|---|---|
 | **1a** | **Complete** (2026-02-28) | File audio pipeline (WAV→DSP→WAV), 9 effects, CLI, 7 presets |
-| **1b** | **Complete** (2026-02-28) | Dear ImGui desktop GUI — real-time WAV playback, preset/chain/param editing |
+| **1b** | **Complete** (2026-02-28) | Dear ImGui desktop GUI — real-time WAV playback, 3-panel horizontal block view, 14 effects, 11 presets |
 | **2** | Q2 2026 | Alpha hardware (STM32H743 + PCB Rev A) |
 | **3** | Q3 2026 | Beta — cloud backend, advanced features (IR Loader, Looper, AmpSim) |
 | **4** | Q4 2026 | Production release |

@@ -5,7 +5,6 @@
 #include "panels/TransportPanel.h"
 #include "panels/PresetPanel.h"
 #include "panels/ChainPanel.h"
-#include "panels/ParamPanel.h"
 #include <string>
 
 struct GLFWwindow;
@@ -41,7 +40,6 @@ private:
     TransportPanel m_transport;
     PresetPanel    m_presets;
     ChainPanel     m_chain;
-    ParamPanel     m_params;
 };
 
 } // namespace gearboxfx

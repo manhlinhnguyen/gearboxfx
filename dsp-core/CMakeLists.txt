@@ -10,8 +10,13 @@ add_library(GearBoxDSP STATIC
     src/effects/gain/CleanBoostNode.cpp
     src/effects/gain/OverdriveNode.cpp
     src/effects/gain/DistortionNode.cpp
+    src/effects/eq/EQNode.cpp
     src/effects/modulation/ChorusNode.cpp
+    src/effects/modulation/FlangerNode.cpp
+    src/effects/modulation/PhaserNode.cpp
+    src/effects/modulation/PitchShifterNode.cpp
     src/effects/modulation/TremoloNode.cpp
+    src/effects/output/VolumeNode.cpp
     src/effects/time/DelayNode.cpp
     src/effects/time/ReverbNode.cpp
 )

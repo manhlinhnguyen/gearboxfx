@@ -1,0 +1,53 @@
+{
+  "preset_id": "00000000-0000-0000-0000-000000000011",
+  "format_version": "1.0",
+  "name": "Octave Up",
+  "routing_mode": "serial",
+  "effect_chain": [
+    {
+      "id": "ng_1",
+      "type": "dynamics.noise_gate",
+      "enabled": true,
+      "params": {
+        "threshold_db": -50.0,
+        "attack_ms": 3.0,
+        "release_ms": 200.0
+      }
+    },
+    {
+      "id": "boost_1",
+      "type": "gain.clean_boost",
+      "enabled": true,
+      "params": {
+        "gain_db": 1.5
+      }
+    },
+    {
+      "id": "pitch_1",
+      "type": "modulation.pitch_shifter",
+      "enabled": true,
+      "params": {
+        "semitones": 12.0,
+        "mix": 0.5
+      }
+    },
+    {
+      "id": "reverb_1",
+      "type": "time.reverb",
+      "enabled": true,
+      "params": {
+        "size": 0.5,
+        "decay": 0.5,
+        "damping": 0.5,
+        "pre_delay_ms": 10.0,
+        "mix": 0.22
+      }
+    }
+  ],
+  "output_eq": {
+    "bass_db": 0.0,
+    "mid_db": 0.0,
+    "treble_db": 1.0
+  },
+  "output_volume": 0.8
+}

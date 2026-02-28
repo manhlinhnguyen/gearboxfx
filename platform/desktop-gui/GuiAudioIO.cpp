@@ -155,9 +155,15 @@ int GuiAudioIO::doCallback(void* outBuf, unsigned long frames) {
     uint64_t framesLeft = (readPos < m_totalFrames) ? (m_totalFrames - readPos) : 0;
 
     if (framesLeft == 0) {
-        m_playing.store(false);
-        std::memset(out, 0, frames * static_cast<size_t>(numCh) * sizeof(float));
-        return paContinue;
+        if (m_loop.load()) {
+            m_readPos.store(0);
+            readPos = 0;
+            framesLeft = m_totalFrames;
+        } else {
+            m_playing.store(false);
+            std::memset(out, 0, frames * static_cast<size_t>(numCh) * sizeof(float));
+            return paContinue;
+        }
     }
 
     auto toRead = static_cast<int>(std::min(static_cast<uint64_t>(nF), framesLeft));

@@ -39,6 +39,8 @@ public:
     int      numChannels() const { return m_numCh; }
     uint32_t sampleRate()  const { return m_sr; }
     bool     hasFile()     const { return !m_decoded.empty(); }
+    bool     loop()        const { return m_loop.load(); }
+    void     setLoop(bool l)    { m_loop.store(l); }
 
     // Acquire chain mutex before any structural chain modification (add/remove/move).
     // The returned lock is released automatically on destruction.
@@ -59,6 +61,7 @@ private:
     std::atomic<uint64_t> m_readPos    {0};
     std::atomic<bool>     m_playing    {false};
     std::atomic<float>    m_outputLevel{0.0f};
+    std::atomic<bool>     m_loop       {false};
 
     PaStream* m_stream   = nullptr;
     bool      m_paInited = false;
