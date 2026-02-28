@@ -28,6 +28,7 @@ endif()
 add_library(GearBoxDesktopGui STATIC
     GearBoxApp.cpp
     GuiAudioIO.cpp
+    stb_vorbis_impl.c
     panels/TransportPanel.cpp
     panels/PresetPanel.cpp
     panels/ChainPanel.cpp
@@ -37,7 +38,7 @@ target_include_directories(GearBoxDesktopGui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(GearBoxDesktopGui
     PUBLIC  GearBoxDSP imgui_lib
-    PRIVATE portaudio_static spdlog::spdlog dr_libs
+    PRIVATE portaudio_static spdlog::spdlog dr_libs stb_libs
 )
 
 if(MSVC)

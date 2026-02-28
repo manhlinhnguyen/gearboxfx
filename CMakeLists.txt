@@ -81,6 +81,14 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
 )
 
+# stb (single-file libraries — stb_vorbis.c for OGG decode, no CMakeLists.txt)
+FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+)
+
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 set(PA_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 set(PA_BUILD_TESTS   OFF CACHE BOOL "" FORCE)
@@ -102,9 +110,18 @@ if(NOT imgui_knobs_POPULATED)
     FetchContent_Populate(imgui_knobs)
 endif()
 
+FetchContent_GetProperties(stb)
+if(NOT stb_POPULATED)
+    FetchContent_Populate(stb)
+endif()
+
 # Create interface target for dr_libs (header-only)
 add_library(dr_libs INTERFACE)
 target_include_directories(dr_libs INTERFACE ${dr_libs_SOURCE_DIR})
+
+# Interface target for stb (consumers #include "stb_vorbis.c" directly)
+add_library(stb_libs INTERFACE)
+target_include_directories(stb_libs INTERFACE ${stb_SOURCE_DIR})
 
 # ── Subdirectories ─────────────────────────────────────────────────────────────
 add_subdirectory(dsp-core)

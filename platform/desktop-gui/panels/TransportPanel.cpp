@@ -14,7 +14,7 @@ static std::string openWavDialog() {
     char buf[512] = {};
     OPENFILENAMEA ofn{};
     ofn.lStructSize = sizeof(ofn);
-    ofn.lpstrFilter = "WAV Files\0*.wav\0All Files\0*.*\0";
+    ofn.lpstrFilter = "Audio Files\0*.wav;*.mp3;*.ogg\0WAV Files\0*.wav\0MP3 Files\0*.mp3\0OGG Files\0*.ogg\0All Files\0*.*\0";
     ofn.lpstrFile   = buf;
     ofn.nMaxFile    = sizeof(buf);
     ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;

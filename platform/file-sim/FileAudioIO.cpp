@@ -1,15 +1,87 @@
-// dr_libs: define implementation macros BEFORE first include.
+// dr_libs: define implementation macros once per binary (no conflict — CLI exe
+// does not link GearBoxDesktopGui).
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
+
+#define DR_MP3_IMPLEMENTATION
+#include "dr_mp3.h"
+
+// stb_vorbis: compiled as a separate C translation unit (stb_vorbis_impl.c).
+extern "C" {
+    int stb_vorbis_decode_filename(const char* filename,
+                                   int* channels, int* sample_rate,
+                                   short** output);
+}
 
 #include "FileAudioIO.h"
 #include "AudioBuffer.h"
 #include <portaudio.h>
 #include <spdlog/spdlog.h>
 #include <vector>
+#include <cctype>
+#include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <stdexcept>
+
+namespace {
+
+static std::string fileExtLower(const std::string& path) {
+    auto pos = path.rfind('.');
+    if (pos == std::string::npos) return "";
+    std::string ext = path.substr(pos);
+    for (auto& c : ext)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return ext;
+}
+
+static bool decodeAudioFile(const std::string& path,
+                             std::vector<float>& out,
+                             uint32_t& sr, int& numCh, uint64_t& totalFrames)
+{
+    const std::string ext = fileExtLower(path);
+
+    if (ext == ".mp3") {
+        drmp3 mp3;
+        if (!drmp3_init_file(&mp3, path.c_str(), nullptr)) return false;
+        sr      = mp3.sampleRate;
+        numCh   = static_cast<int>(mp3.channels);
+        drmp3_uint64 fc = drmp3_get_pcm_frame_count(&mp3);
+        totalFrames = static_cast<uint64_t>(fc);
+        out.resize(totalFrames * static_cast<size_t>(numCh));
+        drmp3_read_pcm_frames_f32(&mp3, fc, out.data());
+        drmp3_uninit(&mp3);
+        return true;
+    }
+
+    if (ext == ".ogg") {
+        int ch = 0, rate = 0;
+        short* rawData = nullptr;
+        int nFrames = stb_vorbis_decode_filename(path.c_str(), &ch, &rate, &rawData);
+        if (nFrames < 0 || !rawData) return false;
+        sr          = static_cast<uint32_t>(rate);
+        numCh       = ch;
+        totalFrames = static_cast<uint64_t>(nFrames);
+        out.resize(totalFrames * static_cast<size_t>(numCh));
+        for (size_t i = 0; i < out.size(); ++i)
+            out[i] = rawData[i] / 32768.0f;
+        std::free(rawData);
+        return true;
+    }
+
+    // Default: WAV
+    drwav wav;
+    if (!drwav_init_file(&wav, path.c_str(), nullptr)) return false;
+    sr          = wav.sampleRate;
+    numCh       = static_cast<int>(wav.channels);
+    totalFrames = static_cast<uint64_t>(wav.totalPCMFrameCount);
+    out.resize(totalFrames * static_cast<size_t>(numCh));
+    drwav_read_pcm_frames_f32(&wav, totalFrames, out.data());
+    drwav_uninit(&wav);
+    return true;
+}
+
+} // anonymous namespace
 
 namespace gearboxfx {
 
@@ -109,31 +181,23 @@ void FileAudioIO::close() {
 }
 
 bool FileAudioIO::runFileToFile() {
-    // ── Decode input WAV ────────────────────────────────────────────────────
-    drwav wav;
-    if (!drwav_init_file(&wav, m_cfg.inputPath.c_str(), nullptr)) {
+    // ── Decode input audio (WAV / MP3 / OGG) ────────────────────────────────
+    std::vector<float> decoded;
+    uint32_t sr = 0; int numCh = 0; uint64_t totalFrames64 = 0;
+    if (!decodeAudioFile(m_cfg.inputPath, decoded, sr, numCh, totalFrames64)) {
         spdlog::error("FileAudioIO: cannot open '{}'", m_cfg.inputPath);
         return false;
     }
-
-    uint32_t sr  = wav.sampleRate;
-    int      numCh = static_cast<int>(wav.channels);
-    size_t   totalFrames = static_cast<size_t>(wav.totalPCMFrameCount);
+    size_t totalFrames = static_cast<size_t>(totalFrames64);
 
     spdlog::info("FileAudioIO: input '{}' — {}Hz, {}ch, {} frames",
                  m_cfg.inputPath, sr, numCh, totalFrames);
 
-    // Update engine sample rate if needed
     m_fmt.sampleRate  = sr;
     m_fmt.numChannels = static_cast<uint32_t>(numCh);
     m_fmt.bufferSize  = m_cfg.bufferSize;
 
     m_engine.prepare(static_cast<double>(sr), static_cast<int>(m_cfg.bufferSize));
-
-    // Decode all frames as float32
-    std::vector<float> decoded(totalFrames * numCh);
-    drwav_read_pcm_frames_f32(&wav, totalFrames, decoded.data());
-    drwav_uninit(&wav);
 
     // ── Process in blocks ───────────────────────────────────────────────────
     int  blockSize  = static_cast<int>(m_cfg.bufferSize);
@@ -198,20 +262,14 @@ bool FileAudioIO::runFileToFile() {
 }
 
 bool FileAudioIO::runFileToSpeaker() {
-    // ── Decode input WAV ────────────────────────────────────────────────────
-    drwav wav;
-    if (!drwav_init_file(&wav, m_cfg.inputPath.c_str(), nullptr)) {
+    // ── Decode input audio (WAV / MP3 / OGG) ────────────────────────────────
+    std::vector<float> decoded;
+    uint32_t sr = 0; int numCh = 0; uint64_t totalFrames64 = 0;
+    if (!decodeAudioFile(m_cfg.inputPath, decoded, sr, numCh, totalFrames64)) {
         spdlog::error("FileAudioIO: cannot open '{}'", m_cfg.inputPath);
         return false;
     }
-
-    uint32_t sr        = wav.sampleRate;
-    int      numCh     = static_cast<int>(wav.channels);
-    size_t   totalFrames = static_cast<size_t>(wav.totalPCMFrameCount);
-
-    std::vector<float> decoded(totalFrames * numCh);
-    drwav_read_pcm_frames_f32(&wav, totalFrames, decoded.data());
-    drwav_uninit(&wav);
+    size_t totalFrames = static_cast<size_t>(totalFrames64);
 
     m_fmt.sampleRate  = sr;
     m_fmt.numChannels = static_cast<uint32_t>(numCh);

@@ -1,14 +1,89 @@
-// DR_WAV_IMPLEMENTATION must be defined exactly once per binary.
-// GearBoxDesktopGui does not link GearBoxFileSim, so no conflict.
+// dr_libs: define implementation macros once per binary (no conflict — GUI exe
+// does not link GearBoxFileSim).
 #define DR_WAV_IMPLEMENTATION
 #include "dr_wav.h"
+
+#define DR_MP3_IMPLEMENTATION
+#include "dr_mp3.h"
+
+// stb_vorbis: compiled as a separate C translation unit (stb_vorbis_impl.c)
+// to avoid the #define C macro polluting C++ template code in spdlog/fmtlib.
+extern "C" {
+    int stb_vorbis_decode_filename(const char* filename,
+                                   int* channels, int* sample_rate,
+                                   short** output);
+}
 
 #include "GuiAudioIO.h"
 #include <portaudio.h>
 #include <spdlog/spdlog.h>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+
+namespace {
+
+// Returns the lowercase file extension including the dot, e.g. ".mp3"
+static std::string fileExtLower(const std::string& path) {
+    auto pos = path.rfind('.');
+    if (pos == std::string::npos) return "";
+    std::string ext = path.substr(pos);
+    for (auto& c : ext)
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return ext;
+}
+
+// Decode WAV / MP3 / OGG into an interleaved float32 buffer.
+// Sets sr, numCh, totalFrames on success and returns true.
+static bool decodeAudioFile(const std::string& path,
+                             std::vector<float>& out,
+                             uint32_t& sr, int& numCh, uint64_t& totalFrames)
+{
+    const std::string ext = fileExtLower(path);
+
+    if (ext == ".mp3") {
+        drmp3 mp3;
+        if (!drmp3_init_file(&mp3, path.c_str(), nullptr)) return false;
+        sr      = mp3.sampleRate;
+        numCh   = static_cast<int>(mp3.channels);
+        drmp3_uint64 fc = drmp3_get_pcm_frame_count(&mp3);
+        totalFrames = static_cast<uint64_t>(fc);
+        out.resize(totalFrames * static_cast<size_t>(numCh));
+        drmp3_read_pcm_frames_f32(&mp3, fc, out.data());
+        drmp3_uninit(&mp3);
+        return true;
+    }
+
+    if (ext == ".ogg") {
+        int ch = 0, rate = 0;
+        short* rawData = nullptr;
+        int nFrames = stb_vorbis_decode_filename(path.c_str(), &ch, &rate, &rawData);
+        if (nFrames < 0 || !rawData) return false;
+        sr          = static_cast<uint32_t>(rate);
+        numCh       = ch;
+        totalFrames = static_cast<uint64_t>(nFrames);
+        out.resize(totalFrames * static_cast<size_t>(numCh));
+        for (size_t i = 0; i < out.size(); ++i)
+            out[i] = rawData[i] / 32768.0f;
+        std::free(rawData);
+        return true;
+    }
+
+    // Default: WAV (also handles unknown extensions)
+    drwav wav;
+    if (!drwav_init_file(&wav, path.c_str(), nullptr)) return false;
+    sr          = wav.sampleRate;
+    numCh       = static_cast<int>(wav.channels);
+    totalFrames = static_cast<uint64_t>(wav.totalPCMFrameCount);
+    out.resize(totalFrames * static_cast<size_t>(numCh));
+    drwav_read_pcm_frames_f32(&wav, totalFrames, out.data());
+    drwav_uninit(&wav);
+    return true;
+}
+
+} // anonymous namespace
 
 namespace gearboxfx {
 
@@ -32,19 +107,10 @@ GuiAudioIO::~GuiAudioIO() {
 bool GuiAudioIO::loadFile(const std::string& path) {
     m_playing.store(false);
 
-    drwav wav;
-    if (!drwav_init_file(&wav, path.c_str(), nullptr)) {
+    if (!decodeAudioFile(path, m_decoded, m_sr, m_numCh, m_totalFrames)) {
         spdlog::error("GuiAudioIO: cannot open '{}'", path);
         return false;
     }
-
-    m_sr          = wav.sampleRate;
-    m_numCh       = static_cast<int>(wav.channels);
-    m_totalFrames = static_cast<uint64_t>(wav.totalPCMFrameCount);
-
-    m_decoded.resize(m_totalFrames * static_cast<size_t>(m_numCh));
-    drwav_read_pcm_frames_f32(&wav, m_totalFrames, m_decoded.data());
-    drwav_uninit(&wav);
 
     m_readPos.store(0);
     m_outputLevel.store(0.0f);

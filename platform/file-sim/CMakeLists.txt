@@ -1,5 +1,6 @@
 add_library(GearBoxFileSim STATIC
     FileAudioIO.cpp
+    stb_vorbis_impl.c
 )
 
 target_include_directories(GearBoxFileSim
@@ -9,6 +10,7 @@ target_include_directories(GearBoxFileSim
 target_link_libraries(GearBoxFileSim
     PUBLIC  GearBoxDSP
     PRIVATE dr_libs
+    PRIVATE stb_libs
     PRIVATE portaudio_static
     PRIVATE spdlog::spdlog
 )
